@@ -36,3 +36,36 @@
     transform: rotate(360deg);
   }
 }
+
+@media print {
+    /* Hide navigation bars, sidebars, and buttons */
+    .no-print, 
+    nav, 
+    aside, 
+    .sidebar, 
+    .navbar, 
+    button {
+        display: none !important;
+    }
+
+    /* Remove shadows and gray backgrounds for paper saving */
+    body {
+        background-color: white !important;
+        font-family: 'Times New Roman', serif; /* Optional: more formal for reports */
+    }
+
+    .container {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .shadow-sm {
+        box-shadow: none !important;
+    }
+
+    .table {
+        border: 1px solid #000 !important;
+    }
+}
