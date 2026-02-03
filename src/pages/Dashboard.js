@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, 
-  AreaChart, Area 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
 import { 
   DollarSign, ArrowUpRight, ArrowDownRight, Activity, 
@@ -10,6 +9,10 @@ import {
   TrendingUp, Layers, Calendar
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+
+// --- PRODUCTION CONFIGURATION ---
+// This line automatically switches between your Render backend and your local computer
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -27,10 +30,11 @@ const Dashboard = () => {
     const loadingToast = toast.loading("Syncing Executive Ledger...");
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:8080/api/finance/dashboard/summary');
+      
+      // Using the dynamic API_BASE_URL instead of a hardcoded string
+      const response = await axios.get(`${API_BASE_URL}/api/finance/dashboard/summary`);
       const data = response.data;
 
-      // Net Profit Calculation
       const calculatedProfit = data.totalRevenue - data.accountsPayable;
 
       setStats({
@@ -38,7 +42,6 @@ const Dashboard = () => {
         netProfit: calculatedProfit
       });
 
-      // Simulation of trend data based on real backend values
       setChartData([
         { month: 'Oct', revenue: data.totalRevenue * 0.7, expenses: data.accountsPayable * 1.1 },
         { month: 'Nov', revenue: data.totalRevenue * 0.85, expenses: data.accountsPayable * 0.9 },
@@ -49,9 +52,13 @@ const Dashboard = () => {
       toast.success("Financial Intelligence Updated", { id: loadingToast });
     } catch (err) {
       console.error("Dashboard Sync Error:", err);
-      toast.error("Real-time sync failed. Using cached data.", { id: loadingToast });
+      // Detailed error logging for debugging
+      if (err.message === "Network Error") {
+         toast.error("Cannot connect to Backend. Check CORS or URL.", { id: loadingToast });
+      } else {
+         toast.error("Real-time sync failed. Using cached data.", { id: loadingToast });
+      }
       
-      // Fallback dummy for UI stability during demo
       setChartData([{ month: 'Error', revenue: 0, expenses: 0 }]);
     } finally {
       setLoading(false);
@@ -82,24 +89,24 @@ const Dashboard = () => {
              <div className="bg-primary p-2 rounded-3 text-white"><TrendingUp size={20}/></div>
              <h4 className="fw-bold text-navy mb-0">Financial Intelligence</h4>
           </div>
-          <p className="text-muted small mb-0">Real-time GAAP compliant analytics from <span className="text-primary fw-bold">PostgreSQL</span></p>
+          <p className="text-muted small mb-0">Real-time analytics from <span className="text-primary fw-bold">Render & PostgreSQL</span></p>
         </div>
         
         <div className="d-flex gap-2">
             <div className="bg-white border rounded-3 px-3 py-2 d-flex align-items-center gap-2 shadow-sm">
                 <Calendar size={16} className="text-muted"/>
-                <span className="small fw-bold text-navy">Q1 Fiscal 2024</span>
+                <span className="small fw-bold text-navy">Q1 Fiscal 2026</span>
             </div>
             <button 
                 onClick={fetchDashboardData}
-                className="btn btn-navy shadow-sm d-flex align-items-center gap-2"
+                className="btn btn-primary shadow-sm d-flex align-items-center gap-2"
             >
                 <RefreshCw size={16} /> Sync Ledger
             </button>
         </div>
       </div>
 
-      {/* 1. KPIs Section */}
+      {/* KPIs Section */}
       <div className="row g-3 mb-4">
         <div className="col-md-3">
             <KPICard title="Total Revenue" value={stats.totalRevenue} icon={<ArrowUpRight size={20}/>} color="#10b981" subtitle={`${stats.revenueChangePercent}% growth`} />
@@ -115,9 +122,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* 2. Main Analytics Row */}
       <div className="row g-4">
-        {/* Left: Bar Chart */}
+        {/* Bar Chart Container - Responsive Height Fix Included */}
         <div className="col-md-8">
             <div className="card border-0 shadow-sm rounded-4 p-4 h-100">
                 <div className="d-flex justify-content-between align-items-center mb-4">
@@ -128,7 +134,7 @@ const Dashboard = () => {
                 </div>
                 
                 <div style={{ width: '100%', height: 350 }}>
-                    <ResponsiveContainer>
+                    <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
@@ -146,55 +152,51 @@ const Dashboard = () => {
             </div>
         </div>
 
-        {/* Right: Asset Distribution / Alerts */}
         <div className="col-md-4">
             <div className="card border-0 shadow-sm rounded-4 p-4 h-100">
                 <h6 className="fw-bold text-navy mb-4 d-flex align-items-center gap-2">
                     <Layers size={18} className="text-primary"/> Portfolio Distribution
                 </h6>
-                
                 <div className="d-flex flex-column gap-4">
                     <AssetItem label="Accounts Receivable" amount={stats.accountsReceivable} color="#3b82f6" percentage={65} />
                     <AssetItem label="Fixed Assets" amount={stats.totalRevenue * 0.4} color="#1a237e" percentage={40} />
                     <AssetItem label="Inventory" amount={stats.totalRevenue * 0.15} color="#94a3b8" percentage={15} />
-                    
                     <hr className="my-2 opacity-10" />
-                    
                     <div className="p-3 bg-primary bg-opacity-10 rounded-4 border border-primary border-opacity-10">
                         <div className="d-flex align-items-center gap-2 text-primary fw-bold small mb-1">
                             <ShieldCheck size={16}/> Ledger Integrity
                         </div>
-                        <p className="text-muted extra-small mb-0">No discrepancies detected between General Ledger and Bank feeds for Q1.</p>
+                        <p className="text-muted extra-small mb-0">No discrepancies detected between General Ledger and Bank feeds.</p>
                     </div>
                 </div>
             </div>
         </div>
       </div>
 
-      {/* Database Status Footer */}
+      {/* Footer Status */}
       <div className="mt-4 pt-3 border-top d-flex justify-content-between align-items-center text-muted small">
         <div className="d-flex align-items-center gap-3">
             <div className="d-flex align-items-center gap-1">
-                <Database size={14} className="text-success"/> <span className="fw-bold text-navy">erp_finance</span> connected
+                <Database size={14} className="text-success"/> <span className="fw-bold text-navy">Production DB</span> connected
             </div>
             <div className="d-flex align-items-center gap-1">
-                <ShieldCheck size={14} className="text-success"/> GAAP Compliant
+                <ShieldCheck size={14} className="text-success"/> Secure Connection
             </div>
         </div>
-        <div>System Version: 2.1.0-STABLE</div>
+        <div>v2.1.0-STABLE | Built for Piyumi</div>
       </div>
     </div>
   );
 };
 
-// Sub-components
+// --- Sub-components (Stay same) ---
 const KPICard = ({ title, value, icon, color, isProfit, subtitle }) => (
   <div className="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white shadow-hover transition-all">
     <div className="d-flex justify-content-between align-items-start mb-2">
       <div>
         <small className="text-uppercase fw-bold text-muted" style={{fontSize: '10px', letterSpacing: '0.5px'}}>{title}</small>
         <h3 className={`fw-bold mt-1 mb-0 ${isProfit ? (value >= 0 ? 'text-success' : 'text-danger') : 'text-navy'}`}>
-          ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ${(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </h3>
         <p className="text-muted mb-0 mt-1" style={{fontSize: '11px'}}>{subtitle}</p>
       </div>
@@ -209,7 +211,7 @@ const AssetItem = ({ label, amount, color, percentage }) => (
   <div>
     <div className="d-flex justify-content-between align-items-center mb-1">
       <small className="fw-bold text-navy" style={{fontSize: '12px'}}>{label}</small>
-      <small className="text-muted fw-bold">${amount.toLocaleString()}</small>
+      <small className="text-muted fw-bold">${(amount || 0).toLocaleString()}</small>
     </div>
     <div className="progress" style={{ height: '6px', borderRadius: '10px' }}>
       <div className="progress-bar" role="progressbar" style={{ width: `${percentage}%`, backgroundColor: color }}></div>
