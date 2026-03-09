@@ -1,53 +1,8 @@
-import React, { useState, useEffect } from 'react'; // Added useEffect import
-import { Percent, Calculator, ShieldCheck, PieChart, Landmark, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Percent, Calculator, ShieldCheck, Landmark, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 
 const TaxManagement = () => {
-  // 1. Add this function inside the TaxManagement component
-const handleRecordLiability = async () => {
-  if (!calcTaxAmount || calcTaxAmount <= 0) {
-    alert("Please enter a valid amount first.");
-    return;
-  }
-
-  const payload = {
-    description: `Tax Provision: ${taxRate}% on $${netAmount}`,
-    status: "POSTED",
-    lines: [
-      { 
-        accountName: "Tax Expense", // Usually a 7xxx code
-        debit: calcTaxAmount, 
-        credit: 0 
-      },
-      { 
-        accountName: "VAT Payable", // Usually a 2xxx code
-        debit: 0, 
-        credit: calcTaxAmount 
-      }
-    ]
-  };
-
-  try {
-    await axios.post('http://localhost:8080/api/accounts/journals', payload);
-    alert("Tax Liability successfully recorded in Ledger!");
-    fetchTaxData(); // Refresh the "Live Tax Liability" card
-  } catch (error) {
-    console.error("Failed to record tax:", error);
-    alert("Error connecting to backend.");
-  }
-};
-
-// 2. Update the button at the bottom of the Estimator section:
-<button 
-  onClick={handleRecordLiability} // Attach the function here
-  style={{ 
-    width: '100%', marginTop: '20px', padding: '12px', borderRadius: '8px', 
-    background: '#1a237e', color: 'white', border: 'none', fontWeight: 'bold', 
-    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' 
-  }}
->
-  <Landmark size={18} /> Record as Liability
-</button>
   const [ledgerData, setLedgerData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [netAmount, setNetAmount] = useState(0);
@@ -83,6 +38,40 @@ const handleRecordLiability = async () => {
   const calcTaxAmount = (netAmount * taxRate) / 100;
   const calcTotalAmount = parseFloat(netAmount || 0) + calcTaxAmount;
 
+  // 4. Record as Liability handler
+  const handleRecordLiability = async () => {
+    if (!calcTaxAmount || calcTaxAmount <= 0) {
+      alert("Please enter a valid amount first.");
+      return;
+    }
+
+    const payload = {
+      description: `Tax Provision: ${taxRate}% on $${netAmount}`,
+      status: "POSTED",
+      lines: [
+        {
+          accountName: "Tax Expense",
+          debit: calcTaxAmount,
+          credit: 0
+        },
+        {
+          accountName: "VAT Payable",
+          debit: 0,
+          credit: calcTaxAmount
+        }
+      ]
+    };
+
+    try {
+      await axios.post('http://localhost:8080/api/accounts/journals', payload);
+      alert("Tax Liability successfully recorded in Ledger!");
+      fetchTaxData();
+    } catch (error) {
+      console.error("Failed to record tax:", error);
+      alert("Error connecting to backend.");
+    }
+  };
+
   // Mock data for tax history table
   const taxHistory = [
     { period: "Q4 2025", type: "VAT", amount: 12500, status: "Paid", date: "2025-12-31" },
@@ -103,11 +92,11 @@ const handleRecordLiability = async () => {
           </h1>
           <p style={{ color: '#64748b', marginTop: '8px' }}>Monitor live liabilities and calculate localized GST/VAT filings.</p>
         </div>
-        <button 
+        <button
           onClick={fetchTaxData}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', fontWeight: '600' }}
         >
-          <RefreshCw size={18} style={{ animation: loading ? 'spin 2s linear infinite' : 'none' }} /> 
+          <RefreshCw size={18} style={{ animation: loading ? 'spin 2s linear infinite' : 'none' }} />
           Sync Ledger
         </button>
       </div>
@@ -123,7 +112,7 @@ const handleRecordLiability = async () => {
             Based on current ledger expenses
           </div>
         </div>
-        
+
         <div style={{ background: 'white', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
           <div style={{ color: '#64748b', fontSize: '13px', fontWeight: '600', textTransform: 'uppercase' }}>Tax Credit Earned</div>
           <div style={{ fontSize: '28px', fontWeight: '800', color: '#059669', margin: '10px 0' }}>$1,120.50</div>
@@ -142,7 +131,7 @@ const handleRecordLiability = async () => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '30px' }}>
-        
+
         {/* Left Column: Tax History */}
         <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
           <div style={{ padding: '20px', borderBottom: '1px solid #f1f5f9', fontWeight: 'bold' }}>Recent Filings & Obligations</div>
@@ -162,7 +151,7 @@ const handleRecordLiability = async () => {
                   <td style={{ padding: '15px', fontSize: '14px' }}>{item.type}</td>
                   <td style={{ padding: '15px', fontSize: '14px', fontWeight: 'bold' }}>${item.amount.toLocaleString()}</td>
                   <td style={{ padding: '15px' }}>
-                    <span style={{ 
+                    <span style={{
                       padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold',
                       background: item.status === 'Paid' ? '#dcfce7' : '#fee2e2',
                       color: item.status === 'Paid' ? '#166534' : '#991b1b'
@@ -182,13 +171,13 @@ const handleRecordLiability = async () => {
             <Calculator size={20} color="#1a237e" /> Smart Tax Estimator
           </h3>
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b' }}>TRANSACTION AMOUNT</label>
-          <input 
-            type="number" 
+          <input
+            type="number"
             onChange={(e) => setNetAmount(e.target.value)}
-            style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginBottom: '15px' }} 
+            style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginBottom: '15px' }}
           />
           <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b' }}>RATE</label>
-          <select 
+          <select
             onChange={(e) => setTaxRate(Number(e.target.value))}
             style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginBottom: '20px' }}
           >
@@ -203,8 +192,15 @@ const handleRecordLiability = async () => {
               <span>Total:</span><strong>${calcTotalAmount.toFixed(2)}</strong>
             </div>
           </div>
-          <button style={{ width: '100%', marginTop: '20px', padding: '12px', borderRadius: '8px', background: '#1a237e', color: 'white', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>
-            <Landmark size={18} style={{ marginRight: '8px' }} /> Record as Liability
+          <button
+            onClick={handleRecordLiability}
+            style={{
+              width: '100%', marginTop: '20px', padding: '12px', borderRadius: '8px',
+              background: '#1a237e', color: 'white', border: 'none', fontWeight: 'bold',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+            }}
+          >
+            <Landmark size={18} /> Record as Liability
           </button>
         </div>
       </div>

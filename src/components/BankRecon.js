@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { 
-  Upload, CheckCircle, AlertCircle, PlusCircle, 
-  RefreshCw, Landmark, Search, History, 
-  TrendingUp, ArrowRightLeft, ShieldCheck 
+import {
+  Upload, CheckCircle, AlertCircle, PlusCircle,
+  RefreshCw, Landmark, Search, History,
+  TrendingUp, ShieldCheck
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 

@@ -145,8 +145,6 @@ export default function App() {
             <Route path="/accounts-payable" element={<AccountsPayable />} />
             <Route path="/accounts-receivable" element={<AccountsReceivable />} />
             <Route path="/fixed-assets" element={<FixedAssets />} />
-            <Route path="/accounts-receivable" element={<div>Accounts Receivable Content</div>} />
-            <Route path="/fixed-assets" element={<div>Fixed Assets Content</div>} />
             <Route path="/new-entry" element={<NewEntry />} />
             <Route path="/ledger" element={<GeneralLedger />} />
             <Route path="/bank" element={<BankRecon />} />

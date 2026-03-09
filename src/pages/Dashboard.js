@@ -4,62 +4,80 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
 import { 
-  DollarSign, ArrowUpRight, ArrowDownRight, Activity, 
-  PieChart as PieIcon, RefreshCw, Database, ShieldCheck, 
-  TrendingUp, Layers, Calendar
+  DollarSign, ArrowUpRight, Activity, 
+  PieChart as PieIcon, RefreshCw, Hotel, PlusCircle, History, LayoutDashboard, Search, TrendingUp, Layers
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
-// --- PRODUCTION CONFIGURATION ---
-// This line automatically switches between your Render backend and your local computer
+// Import local components
+import JournalEntryForm from '../components/finance/JournalEntryForm';
+import LedgerExplorer from './LedgerExplorer'; 
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 const Dashboard = () => {
+  const [view, setView] = useState('overview');
   const [stats, setStats] = useState({
     totalRevenue: 0,
+    totalExpenses: 0,
     accountsReceivable: 0,
     accountsPayable: 0,
     cashBalance: 0,
-    revenueChangePercent: 0,
-    netProfit: 0 
+    netIncome: 0 
   });
+  const [deptData, setDeptData] = useState([]); 
+  const [history, setHistory] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchDashboardData = async () => {
-    const loadingToast = toast.loading("Syncing Executive Ledger...");
+    // Initial load doesn't need a toast, but refreshes do
+    const isInitialLoad = loading;
+    let loadingToast;
+    if (!isInitialLoad) loadingToast = toast.loading("Syncing Hotel Ledger...");
+
     try {
-      setLoading(true);
-      
-      // Using the dynamic API_BASE_URL instead of a hardcoded string
-      const response = await axios.get(`${API_BASE_URL}/api/finance/dashboard/summary`);
-      const data = response.data;
-
-      const calculatedProfit = data.totalRevenue - data.accountsPayable;
-
+      // 1. Fetch Summary Stats
+      const summaryRes = await axios.get(`${API_BASE_URL}/api/finance/dashboard/summary`);
+      const sData = summaryRes.data;
       setStats({
-        ...data,
-        netProfit: calculatedProfit
+        totalRevenue: parseFloat(sData.totalRevenue || 0),
+        totalExpenses: parseFloat(sData.totalExpenses || 0),
+        accountsReceivable: parseFloat(sData.accountsReceivable || 0),
+        accountsPayable: parseFloat(sData.accountsPayable || 0),
+        cashBalance: parseFloat(sData.cashBalance || 0),
+        netIncome: parseFloat(sData.netIncome || 0)
       });
 
-      setChartData([
-        { month: 'Oct', revenue: data.totalRevenue * 0.7, expenses: data.accountsPayable * 1.1 },
-        { month: 'Nov', revenue: data.totalRevenue * 0.85, expenses: data.accountsPayable * 0.9 },
-        { month: 'Dec', revenue: data.totalRevenue * 0.95, expenses: data.accountsPayable * 0.8 },
-        { month: 'Jan (Current)', revenue: data.totalRevenue, expenses: data.accountsPayable },
-      ]);
-      
-      toast.success("Financial Intelligence Updated", { id: loadingToast });
-    } catch (err) {
-      console.error("Dashboard Sync Error:", err);
-      // Detailed error logging for debugging
-      if (err.message === "Network Error") {
-         toast.error("Cannot connect to Backend. Check CORS or URL.", { id: loadingToast });
-      } else {
-         toast.error("Real-time sync failed. Using cached data.", { id: loadingToast });
+      // 2. Fetch Departmental Data
+      try {
+        const deptRes = await axios.get(`${API_BASE_URL}/api/finance/dashboard/departments`);
+        setDeptData(deptRes.data || []);
+      } catch (e) {
+        console.warn("Department data unavailable", e);
       }
-      
-      setChartData([{ month: 'Error', revenue: 0, expenses: 0 }]);
+
+      // 3. Fetch Transaction History (Handles 404/500 gracefully)
+      try {
+        const historyRes = await axios.get(`${API_BASE_URL}/api/finance/entries/history`);
+        setHistory(historyRes.data || []);
+      } catch (e) {
+        console.warn("History endpoint not found, using empty array", e);
+        setHistory([]);
+      }
+
+      // 4. Generate Trend Data
+      const rev = parseFloat(sData.totalRevenue || 0);
+      const exp = parseFloat(sData.totalExpenses || 0);
+      setChartData([
+        { month: 'Prior Period', revenue: rev * 0.82, expenses: exp * 0.88 },
+        { month: 'Current Period', revenue: rev, expenses: exp },
+      ]);
+
+      if (!isInitialLoad) toast.success("Hotel Intelligence Updated", { id: loadingToast });
+    } catch (err) {
+      console.error("Dashboard Error:", err);
+      toast.error("Sync failed. Check API connection.");
     } finally {
       setLoading(false);
     }
@@ -67,13 +85,13 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return (
     <div className="d-flex vh-100 justify-content-center align-items-center bg-light">
       <div className="text-center">
         <RefreshCw className="animate-spin mb-3 text-primary" size={48} />
-        <h5 className="fw-bold text-navy">Loading erp_finance...</h5>
+        <h5 className="fw-bold text-navy">Accessing Hotel Back Office...</h5>
       </div>
     </div>
   );
@@ -82,119 +100,161 @@ const Dashboard = () => {
     <div className="p-4 bg-light min-vh-100 text-start" style={{ fontFamily: 'Inter, sans-serif' }}>
       <Toaster position="top-right" />
       
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-end mb-4">
+      {/* Navigation Header */}
+      <div className="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
         <div>
           <div className="d-flex align-items-center gap-2 mb-1">
-             <div className="bg-primary p-2 rounded-3 text-white"><TrendingUp size={20}/></div>
-             <h4 className="fw-bold text-navy mb-0">Financial Intelligence</h4>
+             <div className="bg-primary p-2 rounded-3 text-white"><Hotel size={20}/></div>
+             <h4 className="fw-bold text-navy mb-0">SoftwarePlus Finance</h4>
           </div>
-          <p className="text-muted small mb-0">Real-time analytics from <span className="text-primary fw-bold">Render & PostgreSQL</span></p>
+          <p className="text-muted small mb-0">Status: <span className="text-success fw-bold">ERP Live</span></p>
         </div>
         
         <div className="d-flex gap-2">
-            <div className="bg-white border rounded-3 px-3 py-2 d-flex align-items-center gap-2 shadow-sm">
-                <Calendar size={16} className="text-muted"/>
-                <span className="small fw-bold text-navy">Q1 Fiscal 2026</span>
-            </div>
-            <button 
-                onClick={fetchDashboardData}
-                className="btn btn-primary shadow-sm d-flex align-items-center gap-2"
-            >
-                <RefreshCw size={16} /> Sync Ledger
+            <button onClick={() => setView('overview')} className={`btn ${view === 'overview' ? 'btn-primary' : 'btn-white border'} shadow-sm d-flex align-items-center gap-2`}>
+                <LayoutDashboard size={16} /> Overview
+            </button>
+            <button onClick={() => setView('history')} className={`btn ${view === 'history' ? 'btn-primary' : 'btn-white border'} shadow-sm d-flex align-items-center gap-2`}>
+                <History size={16} /> History
+            </button>
+            <button onClick={() => setView('explorer')} className={`btn ${view === 'explorer' ? 'btn-primary' : 'btn-white border'} shadow-sm d-flex align-items-center gap-2`}>
+                <Search size={16} /> Explorer
+            </button>
+            <button onClick={() => setView('new-entry')} className="btn btn-success shadow-sm d-flex align-items-center gap-2">
+                <PlusCircle size={16} /> New Entry
             </button>
         </div>
       </div>
 
-      {/* KPIs Section */}
-      <div className="row g-3 mb-4">
-        <div className="col-md-3">
-            <KPICard title="Total Revenue" value={stats.totalRevenue} icon={<ArrowUpRight size={20}/>} color="#10b981" subtitle={`${stats.revenueChangePercent}% growth`} />
-        </div>
-        <div className="col-md-3">
-            <KPICard title="Cash on Hand" value={stats.cashBalance} icon={<DollarSign size={20}/>} color="#3b82f6" subtitle="Current Liquidity" />
-        </div>
-        <div className="col-md-3">
-            <KPICard title="Accounts Payable" value={stats.accountsPayable} icon={<ArrowDownRight size={20}/>} color="#ef4444" subtitle="Pending Obligations" />
-        </div>
-        <div className="col-md-3">
-            <KPICard title="Net Profit" value={stats.netProfit} icon={<Activity size={20}/>} color="#1a237e" isProfit />
-        </div>
-      </div>
-
-      <div className="row g-4">
-        {/* Bar Chart Container - Responsive Height Fix Included */}
-        <div className="col-md-8">
-            <div className="card border-0 shadow-sm rounded-4 p-4 h-100">
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                    <h6 className="fw-bold text-navy mb-0 d-flex align-items-center gap-2">
-                        <PieIcon size={18} className="text-primary"/> Revenue vs. Operating Expenses
-                    </h6>
-                    <div className="badge bg-light text-muted border px-3 py-2 rounded-pill" style={{fontSize: '10px'}}>MONTHLY COMPARISON</div>
-                </div>
-                
-                <div style={{ width: '100%', height: 350 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(val) => `$${val/1000}k`} />
-                            <Tooltip 
-                                cursor={{fill: '#f8fafc'}}
-                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                            />
-                            <Legend verticalAlign="top" align="right" wrapperStyle={{paddingBottom: '20px'}} />
-                            <Bar dataKey="revenue" name="Revenue" fill="#1a237e" radius={[4, 4, 0, 0]} barSize={40} />
-                            <Bar dataKey="expenses" name="Expenses" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={40} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
+      {/* VIEW: OVERVIEW */}
+      {view === 'overview' && (
+        <>
+          <div className="row g-3 mb-4">
+            <div className="col-md-3">
+                <KPICard title="Total Revenue" value={stats.totalRevenue} icon={<ArrowUpRight size={20}/>} color="#10b981" subtitle="Room & POS Sales" />
             </div>
-        </div>
+            <div className="col-md-3">
+                <KPICard title="Cash on Hand" value={stats.cashBalance} icon={<DollarSign size={20}/>} color="#3b82f6" subtitle="Operating Funds" />
+            </div>
+            <div className="col-md-3">
+                <KPICard title="City Ledger (AR)" value={stats.accountsReceivable} icon={<Layers size={20}/>} color="#6366f1" subtitle="Corporate Due" />
+            </div>
+            <div className="col-md-3">
+                <KPICard title="Net Profit" value={stats.netIncome} icon={<Activity size={20}/>} color="#1a237e" isProfit subtitle="Bottom Line" />
+            </div>
+          </div>
 
-        <div className="col-md-4">
-            <div className="card border-0 shadow-sm rounded-4 p-4 h-100">
-                <h6 className="fw-bold text-navy mb-4 d-flex align-items-center gap-2">
-                    <Layers size={18} className="text-primary"/> Portfolio Distribution
-                </h6>
-                <div className="d-flex flex-column gap-4">
-                    <AssetItem label="Accounts Receivable" amount={stats.accountsReceivable} color="#3b82f6" percentage={65} />
-                    <AssetItem label="Fixed Assets" amount={stats.totalRevenue * 0.4} color="#1a237e" percentage={40} />
-                    <AssetItem label="Inventory" amount={stats.totalRevenue * 0.15} color="#94a3b8" percentage={15} />
-                    <hr className="my-2 opacity-10" />
-                    <div className="p-3 bg-primary bg-opacity-10 rounded-4 border border-primary border-opacity-10">
-                        <div className="d-flex align-items-center gap-2 text-primary fw-bold small mb-1">
-                            <ShieldCheck size={16}/> Ledger Integrity
-                        </div>
-                        <p className="text-muted extra-small mb-0">No discrepancies detected between General Ledger and Bank feeds.</p>
+          <div className="row g-4">
+            {/* Chart Area */}
+            <div className="col-md-8">
+                <div className="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+                    <h6 className="fw-bold text-navy mb-4 d-flex align-items-center gap-2">
+                        <TrendingUp size={18} className="text-primary"/> Performance Trends
+                    </h6>
+                    <div style={{ width: '100%', height: 350 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                                <YAxis axisLine={false} tickLine={false} tickFormatter={(val) => `$${val.toLocaleString()}`} />
+                                <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                <Legend verticalAlign="top" align="right" />
+                                <Bar dataKey="revenue" name="Revenue" fill="#1a237e" radius={[4, 4, 0, 0]} barSize={40} />
+                                <Bar dataKey="expenses" name="Expenses" fill="#cbd5e1" radius={[4, 4, 0, 0]} barSize={40} />
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
             </div>
-        </div>
-      </div>
 
-      {/* Footer Status */}
-      <div className="mt-4 pt-3 border-top d-flex justify-content-between align-items-center text-muted small">
-        <div className="d-flex align-items-center gap-3">
-            <div className="d-flex align-items-center gap-1">
-                <Database size={14} className="text-success"/> <span className="fw-bold text-navy">Production DB</span> connected
+            {/* Department Breakdown List */}
+            <div className="col-md-4">
+                <div className="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+                    <h6 className="fw-bold text-navy mb-4 d-flex align-items-center gap-2">
+                        <PieIcon size={18} className="text-primary"/> Spending by Dept
+                    </h6>
+                    <div className="d-flex flex-column gap-3 overflow-auto" style={{maxHeight: '350px'}}>
+                        {deptData.length > 0 ? (
+                            deptData.map((item, index) => (
+                                <AssetItem 
+                                    key={index} 
+                                    label={item.name} 
+                                    amount={item.value} 
+                                    color={index % 2 === 0 ? '#1a237e' : '#10b981'} 
+                                    percentage={stats.totalExpenses > 0 ? (item.value / stats.totalExpenses) * 100 : 0} 
+                                />
+                            ))
+                        ) : (
+                            <div className="text-center py-5">
+                                <Activity size={32} className="text-muted mb-2 opacity-25" />
+                                <p className="text-muted small">No departmental expenses yet.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
-            <div className="d-flex align-items-center gap-1">
-                <ShieldCheck size={14} className="text-success"/> Secure Connection
+          </div>
+        </>
+      )}
+
+      {/* OTHER VIEWS */}
+      {view === 'new-entry' && (
+        <JournalEntryForm onBack={() => { setView('overview'); fetchDashboardData(); }} />
+      )}
+
+      {view === 'explorer' && (
+        <LedgerExplorer onBack={() => setView('overview')} />
+      )}
+
+      {view === 'history' && (
+        <div className="card border-0 shadow-sm rounded-4 p-4 bg-white">
+            <h5 className="fw-bold text-navy mb-4">Transaction Ledger History</h5>
+            <div className="table-responsive">
+                <table className="table table-hover align-middle">
+                    <thead className="table-light">
+                        <tr className="small text-muted text-uppercase">
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Reference</th>
+                            <th className="text-end">Total Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {history.length > 0 ? (
+                            history.map((item) => {
+                                const total = item.lines?.reduce((sum, l) => sum + parseFloat(l.debit || 0), 0) || 0;
+                                return (
+                                    <tr key={item.id}>
+                                        <td className="small">{item.entryDate}</td>
+                                        <td>
+                                          <div className="fw-bold small text-navy">{item.description}</div>
+                                          <div className="text-muted" style={{fontSize: '10px'}}>{item.lines?.length || 0} split lines</div>
+                                        </td>
+                                        <td className="text-muted small">{item.referenceNo || 'N/A'}</td>
+                                        <td className="fw-bold text-primary text-end">
+                                            ${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        ) : (
+                            <tr><td colSpan="4" className="text-center py-4 text-muted">No transactions recorded yet.</td></tr>
+                        )}
+                    </tbody>
+                </table>
             </div>
         </div>
-        <div>v2.1.0-STABLE | Built for Piyumi</div>
-      </div>
+      )}
     </div>
   );
 };
 
-// --- Sub-components (Stay same) ---
+// Internal Sub-components
 const KPICard = ({ title, value, icon, color, isProfit, subtitle }) => (
-  <div className="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white shadow-hover transition-all">
+  <div className="card border-0 shadow-sm rounded-4 p-3 h-100 bg-white">
     <div className="d-flex justify-content-between align-items-start mb-2">
       <div>
-        <small className="text-uppercase fw-bold text-muted" style={{fontSize: '10px', letterSpacing: '0.5px'}}>{title}</small>
+        <small className="text-uppercase fw-bold text-muted" style={{fontSize: '10px'}}>{title}</small>
         <h3 className={`fw-bold mt-1 mb-0 ${isProfit ? (value >= 0 ? 'text-success' : 'text-danger') : 'text-navy'}`}>
           ${(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </h3>
@@ -208,13 +268,20 @@ const KPICard = ({ title, value, icon, color, isProfit, subtitle }) => (
 );
 
 const AssetItem = ({ label, amount, color, percentage }) => (
-  <div>
+  <div className="mb-2 text-start">
     <div className="d-flex justify-content-between align-items-center mb-1">
-      <small className="fw-bold text-navy" style={{fontSize: '12px'}}>{label}</small>
-      <small className="text-muted fw-bold">${(amount || 0).toLocaleString()}</small>
+      <small className="fw-bold text-navy" style={{fontSize: '11px'}}>{label}</small>
+      <small className="text-muted" style={{fontSize: '11px'}}>${(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</small>
     </div>
-    <div className="progress" style={{ height: '6px', borderRadius: '10px' }}>
-      <div className="progress-bar" role="progressbar" style={{ width: `${percentage}%`, backgroundColor: color }}></div>
+    <div className="progress" style={{ height: '5px', borderRadius: '10px', backgroundColor: '#f1f5f9' }}>
+      <div 
+        className="progress-bar" 
+        style={{ 
+          width: `${Math.min(Math.max(percentage, 2), 100)}%`, 
+          backgroundColor: color,
+          transition: 'width 1.2s ease-in-out'
+        }}
+      ></div>
     </div>
   </div>
 );

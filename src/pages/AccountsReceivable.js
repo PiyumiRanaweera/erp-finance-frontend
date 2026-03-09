@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { 
-  Plus, Download, Search, Eye, 
-  CheckCircle, Clock, Users, RefreshCw, TrendingUp
+import {
+  Plus, Download, Eye,
+  CheckCircle, Clock, Users, RefreshCw, TrendingUp, X
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -10,55 +10,98 @@ const AccountsReceivable = () => {
     const [invoices, setInvoices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isLive, setIsLive] = useState(false);
-    const [stats, setStats] = useState({ totalPending: 0, overdue: 0, collectedThisMonth: 0, customerCount: 0 });
-
-    // 1. Rename to handleMockData to avoid ESLint Hook errors
-    const handleMockData = () => {
-        const mock = [
-            { id: 1, customer: "Global Retailers", invoiceNo: "REC-901", date: "2023-11-10", dueDate: "2023-12-10", amount: 15400.00, status: "Pending" },
-            { id: 2, customer: "Horizon Tech", invoiceNo: "REC-902", date: "2023-10-15", dueDate: "2023-11-15", amount: 2850.00, status: "Overdue" },
-            { id: 3, customer: "City Logistics", invoiceNo: "REC-903", date: "2023-11-20", dueDate: "2023-12-20", amount: 6200.75, status: "Pending" }
-        ];
-        setInvoices(mock);
-        calculateKPIs(mock);
-    };
-
-    const calculateKPIs = (data) => {
-        const total = data.reduce((sum, inv) => sum + (inv.amount || 0), 0);
-        const overdue = data.filter(inv => inv.status === 'Overdue').reduce((sum, inv) => sum + (inv.amount || 0), 0);
-        setStats({
-            totalPending: total,
-            overdue: overdue,
-            collectedThisMonth: 42500.00,
-            customerCount: new Set(data.map(inv => inv.customer)).size
-        });
-    };
+    const [showModal, setShowModal] = useState(false);
+    const [stats, setStats] = useState({ totalOutstanding: 0, overdue: 0, collectedMTD: 0, activeCustomers: 0 });
+    
+    const [formData, setFormData] = useState({
+        customer: '',
+        invoiceNo: '',
+        amount: '',
+        invoiceDate: new Date().toISOString().split('T')[0],
+        dueDate: '',
+        status: 'PENDING'
+    });
 
     const fetchARData = async () => {
         try {
             setLoading(true);
-            const response = await axios.get('http://localhost:8080/api/ar/invoices');
+            const [invRes, sumRes] = await Promise.all([
+                axios.get('http://localhost:8080/api/ar/invoices'),
+                axios.get('http://localhost:8080/api/ar/summary')
+            ]);
             
-            if (response.data && response.data.length > 0) {
-                setInvoices(response.data);
-                calculateKPIs(response.data);
-                setIsLive(true);
-            } else {
-                handleMockData(); // Called renamed function
-            }
+            setInvoices(invRes.data);
+            setStats(sumRes.data);
+            setIsLive(true);
         } catch (err) {
-            console.log("Using fallback data...");
-            handleMockData(); // Called renamed function
+            console.error("Backend unreachable, using mock data...");
+            handleMockData();
             setIsLive(false);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => { 
-        fetchARData(); 
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    const handleMockData = () => {
+        const mock = [
+            { id: 1, customer: "Global Retailers", invoiceNo: "REC-901", invoiceDate: "2023-11-10", dueDate: "2023-12-10", amount: 15400.00, status: "PENDING" },
+            { id: 2, customer: "Horizon Tech", invoiceNo: "REC-902", invoiceDate: "2023-10-15", dueDate: "2023-11-15", amount: 2850.00, status: "OVERDUE" },
+            { id: 3, customer: "City Logistics", invoiceNo: "REC-903", invoiceDate: "2023-11-20", dueDate: "2023-12-20", amount: 6200.75, status: "PENDING" }
+        ];
+        setInvoices(mock);
+        setStats({ totalOutstanding: 24450.75, overdue: 1, collectedMTD: 42500, activeCustomers: 3 });
+    };
+
+    const handleAddSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await axios.post('http://localhost:8080/api/ar/invoices', formData);
+            toast.success("Customer Invoice Generated");
+            setShowModal(false);
+            setFormData({ customer: '', invoiceNo: '', amount: '', invoiceDate: new Date().toISOString().split('T')[0], dueDate: '', status: 'PENDING' });
+            fetchARData();
+        } catch (err) {
+            toast.error("Failed to save invoice");
+        }
+    };
+
+    const handleMarkAsPaid = async (id) => {
+        try {
+            await axios.post(`http://localhost:8080/api/ar/pay/${id}`);
+            toast.success("Payment Received");
+            fetchARData();
+        } catch (err) {
+            toast.error("Could not update status");
+        }
+    };
+
+    // --- NEW EXPORT LOGIC ---
+    const handleExport = () => {
+        if (invoices.length === 0) {
+            toast.error("No data available to export");
+            return;
+        }
+
+        const headers = ["Customer,Invoice No,Date,Due Date,Amount,Status"];
+        const rows = invoices.map(inv => 
+            `"${inv.customer}","${inv.invoiceNo}","${inv.invoiceDate || inv.date}","${inv.dueDate}",${inv.amount},"${inv.status}"`
+        );
+
+        const csvContent = [headers, ...rows].join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `AR_Report_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success("Exporting CSV...");
+    };
+
+    useEffect(() => { fetchARData(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <div className="p-4 bg-light min-vh-100 text-start">
@@ -72,26 +115,31 @@ const AccountsReceivable = () => {
 
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h4 className="fw-bold text-navy mb-0">Accounts Receivable</h4>
+                    <h4 className="fw-bold text-dark mb-0">Accounts Receivable</h4>
                     <p className="text-muted small mb-0">Manage customer credit and incoming revenue</p>
                 </div>
                 <div className="d-flex gap-2">
-                    <button className="btn btn-navy shadow-sm d-flex align-items-center gap-2"><Plus size={18}/> New Invoice</button>
-                    <button className="btn btn-white border shadow-sm d-flex align-items-center gap-2"><Download size={18}/> Export</button>
+                    <button onClick={() => setShowModal(true)} className="btn btn-primary shadow-sm d-flex align-items-center gap-2">
+                        <Plus size={18}/> New Invoice
+                    </button>
+                    {/* UPDATED EXPORT BUTTON */}
+                    <button onClick={handleExport} className="btn btn-white border shadow-sm d-flex align-items-center gap-2">
+                        <Download size={18}/> Export
+                    </button>
                     <button onClick={fetchARData} className="btn btn-white border shadow-sm">
-                        <RefreshCw size={18} className={loading ? 'spin' : ''}/>
+                        <RefreshCw size={18} className={loading ? 'spin-anim' : ''}/>
                     </button>
                 </div>
             </div>
 
             <div className="row g-3 mb-4">
-                <KPICard label="Total Outstanding" val={`$${stats.totalPending.toLocaleString()}`} icon={<TrendingUp className="text-primary"/>} />
-                <KPICard label="Overdue" val={`$${stats.overdue.toLocaleString()}`} icon={<Clock className="text-danger"/>} />
-                <KPICard label="Collected (MTD)" val={`$${stats.collectedThisMonth.toLocaleString()}`} icon={<CheckCircle className="text-success"/>} />
-                <KPICard label="Active Customers" val={stats.customerCount} icon={<Users className="text-navy"/>} />
+                <KPICard label="Total Outstanding" val={`$${stats.totalOutstanding?.toLocaleString()}`} icon={<TrendingUp className="text-primary"/>} />
+                <KPICard label="Overdue" val={stats.overdue} icon={<Clock className="text-danger"/>} />
+                <KPICard label="Collected (MTD)" val={`$${stats.collectedMTD?.toLocaleString()}`} icon={<CheckCircle className="text-success"/>} />
+                <KPICard label="Active Customers" val={stats.activeCustomers} icon={<Users className="text-primary"/>} />
             </div>
 
-            <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
                 <div className="table-responsive">
                     <table className="table table-hover align-middle mb-0">
                         <thead className="bg-light text-muted small text-uppercase">
@@ -108,18 +156,31 @@ const AccountsReceivable = () => {
                         <tbody>
                             {invoices.map((inv) => (
                                 <tr key={inv.id} style={{fontSize: '13px'}}>
-                                    <td className="ps-4 fw-bold text-navy">{inv.customer}</td>
+                                    <td className="ps-4">
+                                        <div className="fw-bold text-dark">{inv.customer}</div>
+                                        <div className="text-muted" style={{fontSize: '10px'}}>REF: {inv.id}</div>
+                                    </td>
                                     <td className="text-muted">{inv.invoiceNo}</td>
-                                    <td>{inv.date}</td>
+                                    <td>{inv.invoiceDate || inv.date}</td>
                                     <td>{inv.dueDate}</td>
                                     <td className="fw-bold">${inv.amount?.toLocaleString()}</td>
                                     <td>
-                                        <span className={`badge rounded-pill px-3 ${inv.status === 'Overdue' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary'}`}>
+                                        <span className={`badge rounded-pill px-3 ${
+                                            inv.status === 'PAID' ? 'bg-success-subtle text-success' : 
+                                            inv.status === 'OVERDUE' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary'
+                                        }`}>
                                             {inv.status}
                                         </span>
                                     </td>
                                     <td className="text-center">
-                                        <button className="btn btn-sm btn-light border"><Eye size={14}/></button>
+                                        <div className="d-flex gap-1 justify-content-center">
+                                            <button className="btn btn-sm btn-light border p-1"><Eye size={14}/></button>
+                                            {inv.status !== 'PAID' && (
+                                                <button onClick={() => handleMarkAsPaid(inv.id)} className="btn btn-sm btn-outline-success p-1" title="Mark as Collected">
+                                                    <CheckCircle size={14}/>
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -127,6 +188,48 @@ const AccountsReceivable = () => {
                     </table>
                 </div>
             </div>
+
+            {/* NEW INVOICE MODAL */}
+            {showModal && (
+                <div className="modal d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050}}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content border-0 rounded-4 p-3 shadow-lg">
+                            <form onSubmit={handleAddSubmit}>
+                                <div className="modal-header border-0 pb-0">
+                                    <h5 className="fw-bold text-dark">Issue New Invoice</h5>
+                                    <X className="cursor-pointer text-muted" onClick={() => setShowModal(false)}/>
+                                </div>
+                                <div className="modal-body row g-3">
+                                    <div className="col-12">
+                                        <label className="small fw-bold mb-1">Customer Name</label>
+                                        <input required className="form-control" value={formData.customer} onChange={e => setFormData({...formData, customer: e.target.value})}/>
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="small fw-bold mb-1">Invoice Number</label>
+                                        <input required className="form-control" value={formData.invoiceNo} onChange={e => setFormData({...formData, invoiceNo: e.target.value})}/>
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="small fw-bold mb-1">Total Amount</label>
+                                        <input required type="number" step="0.01" className="form-control" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})}/>
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="small fw-bold mb-1">Billing Date</label>
+                                        <input required type="date" className="form-control" value={formData.invoiceDate} onChange={e => setFormData({...formData, invoiceDate: e.target.value})}/>
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="small fw-bold mb-1">Due Date</label>
+                                        <input required type="date" className="form-control" value={formData.dueDate} onChange={e => setFormData({...formData, dueDate: e.target.value})}/>
+                                    </div>
+                                </div>
+                                <div className="modal-footer border-0">
+                                    <button type="button" className="btn btn-light" onClick={() => setShowModal(false)}>Cancel</button>
+                                    <button type="submit" className="btn btn-primary px-4">Generate Invoice</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -138,7 +241,7 @@ const KPICard = ({ label, val, icon }) => (
                 <small className="text-uppercase fw-bold text-muted" style={{fontSize: '10px'}}>{label}</small>
                 {icon}
             </div>
-            <h3 className="fw-bold mb-0 text-navy">{val}</h3>
+            <h3 className="fw-bold mb-0 text-dark">{val}</h3>
         </div>
     </div>
 );

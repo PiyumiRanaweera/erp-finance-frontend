@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Database, Download, UploadCloud, History, ShieldCheck, AlertCircle, HardDrive, RefreshCcw } from 'lucide-react';
+import { Database, UploadCloud, History, ShieldCheck, AlertCircle, HardDrive, RefreshCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const BackupRestore = () => {
