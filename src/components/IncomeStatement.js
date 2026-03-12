@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { FileDown, RefreshCw, ArrowLeft } from 'lucide-react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+import autoTable from 'jspdf-autotable';
+import api from '../api/client';
 
 const IncomeStatement = ({ onBack }) => {
     // Initial state updated to match the Java DTO field names exactly
@@ -20,7 +18,7 @@ const IncomeStatement = ({ onBack }) => {
         setLoading(true);
         try {
             // Updated URL to match the backend Report Controller structure
-            const response = await axios.get(`${API_BASE_URL}/api/finance/reports/income-statement`);
+            const response = await api.get('/api/finance/reports/income-statement');
             console.log("P&L Data received:", response.data);
             
             setData(response.data || { 
@@ -70,7 +68,7 @@ const IncomeStatement = ({ onBack }) => {
         
         doc.setFont("helvetica", "bold");
         const isProfitable = data.netProfit >= 0;
-        doc.setTextColor(isProfitable ? [22, 101, 52] : [185, 28, 28]); 
+        doc.setTextColor(...(isProfitable ? [22, 101, 52] : [185, 28, 28]));
         doc.text(`NET INCOME: $${formatMoney(data.netProfit)}`, 14, 65);
 
         // Data Table Mapping
@@ -82,7 +80,7 @@ const IncomeStatement = ({ onBack }) => {
                 : `$${formatMoney(balance)}`
         ]);
 
-        doc.autoTable({
+        autoTable(doc, {
             startY: 75,
             head: [['Account Description', 'Category', 'Balance']],
             body: tableRows,

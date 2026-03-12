@@ -30,7 +30,7 @@ const ChartOfAccounts = () => {
   const [newAccount, setNewAccount] = useState({ accountCode: '', accountName: '', type: 'Balance Sheet', department: 'General' });
 
   // Update this URL to match your @RequestMapping("/api/finance/accounts")
-  const API_URL = 'http://localhost:8080/api/finance/accounts';
+  const API_URL = (process.env.REACT_APP_API_URL || 'http://localhost:8080') + '/api/finance/accounts';
 
   const fetchAccounts = () => {
     setLoading(true);

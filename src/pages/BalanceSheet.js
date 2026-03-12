@@ -9,7 +9,7 @@ const BalanceSheet = () => {
 
   useEffect(() => {
     // FIXED: Corrected the URL to match the @RequestMapping in AccountController
-    fetch('http://localhost:8080/api/finance/accounts/balances')
+    fetch((process.env.REACT_APP_API_URL || 'http://localhost:8080') + '/api/finance/accounts/balances')
       .then(res => {
         if (!res.ok) throw new Error("Failed to fetch balances");
         return res.json();

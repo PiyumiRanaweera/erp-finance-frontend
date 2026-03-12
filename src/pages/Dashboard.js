@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/client';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
@@ -12,8 +12,6 @@ import toast, { Toaster } from 'react-hot-toast';
 // Import local components
 import JournalEntryForm from '../components/finance/JournalEntryForm';
 import LedgerExplorer from './LedgerExplorer'; 
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 const Dashboard = () => {
   const [view, setView] = useState('overview');
@@ -38,7 +36,7 @@ const Dashboard = () => {
 
     try {
       // 1. Fetch Summary Stats
-      const summaryRes = await axios.get(`${API_BASE_URL}/api/finance/dashboard/summary`);
+      const summaryRes = await api.get('/api/finance/dashboard/summary');
       const sData = summaryRes.data;
       setStats({
         totalRevenue: parseFloat(sData.totalRevenue || 0),
@@ -51,7 +49,7 @@ const Dashboard = () => {
 
       // 2. Fetch Departmental Data
       try {
-        const deptRes = await axios.get(`${API_BASE_URL}/api/finance/dashboard/departments`);
+        const deptRes = await api.get('/api/finance/dashboard/departments');
         setDeptData(deptRes.data || []);
       } catch (e) {
         console.warn("Department data unavailable", e);
@@ -59,7 +57,7 @@ const Dashboard = () => {
 
       // 3. Fetch Transaction History (Handles 404/500 gracefully)
       try {
-        const historyRes = await axios.get(`${API_BASE_URL}/api/finance/entries/history`);
+        const historyRes = await api.get('/api/finance/entries/history');
         setHistory(historyRes.data || []);
       } catch (e) {
         console.warn("History endpoint not found, using empty array", e);

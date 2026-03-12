@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import {
   Plus, Download, Eye,
   CheckCircle, Clock, Users, RefreshCw, TrendingUp, X
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import api from '../api/client';
 
 const AccountsReceivable = () => {
     const [invoices, setInvoices] = useState([]);
@@ -26,8 +26,8 @@ const AccountsReceivable = () => {
         try {
             setLoading(true);
             const [invRes, sumRes] = await Promise.all([
-                axios.get('http://localhost:8080/api/ar/invoices'),
-                axios.get('http://localhost:8080/api/ar/summary')
+                api.get('/api/ar/invoices'),
+                api.get('/api/ar/summary')
             ]);
             
             setInvoices(invRes.data);
@@ -55,7 +55,7 @@ const AccountsReceivable = () => {
     const handleAddSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:8080/api/ar/invoices', formData);
+            await api.post('/api/ar/invoices', formData);
             toast.success("Customer Invoice Generated");
             setShowModal(false);
             setFormData({ customer: '', invoiceNo: '', amount: '', invoiceDate: new Date().toISOString().split('T')[0], dueDate: '', status: 'PENDING' });
@@ -67,7 +67,7 @@ const AccountsReceivable = () => {
 
     const handleMarkAsPaid = async (id) => {
         try {
-            await axios.post(`http://localhost:8080/api/ar/pay/${id}`);
+            await api.post(`/api/ar/pay/${id}`);
             toast.success("Payment Received");
             fetchARData();
         } catch (err) {

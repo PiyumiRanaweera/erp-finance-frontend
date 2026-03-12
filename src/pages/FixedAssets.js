@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import { 
   Plus, Eye, Home, Truck, Monitor, 
   Settings, BarChart3, RefreshCw, Shield, X, Trash2, Search, Filter
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import api from '../api/client';
 
 const FixedAssets = () => {
     const [assets, setAssets] = useState([]);
@@ -39,10 +39,10 @@ const FixedAssets = () => {
         try {
             setLoading(true);
             const url = query 
-                ? `http://localhost:8080/api/assets/all?search=${encodeURIComponent(query)}` 
-                : 'http://localhost:8080/api/assets/all';
+                ? `/api/assets/all?search=${encodeURIComponent(query)}` 
+                : '/api/assets/all';
             
-            const response = await axios.get(url);
+            const response = await api.get(url);
             if (response.data) {
                 setAssets(response.data);
                 calculateKPIs(response.data);
@@ -75,7 +75,7 @@ const FixedAssets = () => {
         };
 
         try {
-            await axios.post('http://localhost:8080/api/assets/register', submissionData);
+            await api.post('/api/assets/register', submissionData);
             toast.success('Asset registered successfully!');
             setShowModal(false);
             fetchAssets(searchTerm); 
@@ -88,7 +88,7 @@ const FixedAssets = () => {
     const handleDelete = async (id) => {
         if (!window.confirm("Are you sure you want to delete this asset?")) return;
         try {
-            await axios.delete(`http://localhost:8080/api/assets/${id}`);
+            await api.delete(`/api/assets/${id}`);
             toast.success('Asset deleted');
             fetchAssets(searchTerm);
         } catch (err) {

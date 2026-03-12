@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api/client';
 import { Search, ArrowLeft, Download } from 'lucide-react';
 
 const LedgerExplorer = ({ onBack }) => {
@@ -12,7 +12,7 @@ const LedgerExplorer = ({ onBack }) => {
         setSearching(true);
         try {
             // Updated to match the endpoint we set in FinancialController
-            const res = await axios.get(`http://localhost:8080/api/finance/ledger/search?accountCode=${accountCode}`);
+            const res = await api.get(`/api/finance/ledger/search?accountCode=${accountCode}`);
             setResults(Array.isArray(res.data) ? res.data : []);
         } catch (err) {
             console.error("Search failed", err);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../api/client';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const AccountBalanceChart = () => {
@@ -8,7 +8,7 @@ const AccountBalanceChart = () => {
 
     useEffect(() => {
         // Calling your AccountController.java @GetMapping("/balances")
-        axios.get('http://localhost:8080/api/accounts/balances')
+        api.get('/api/accounts/balances')
             .then(response => {
                 // Formatting data for Recharts
                 const formattedData = response.data.map(item => ({

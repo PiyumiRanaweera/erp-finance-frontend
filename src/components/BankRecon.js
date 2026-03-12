@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import {
   Upload, CheckCircle, AlertCircle, PlusCircle,
   RefreshCw, Landmark, Search, History,
   TrendingUp, ShieldCheck
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import api from '../api/client';
 
 const BankReconciliation = () => {
   const [bankStatement, setBankStatement] = useState([]);
@@ -17,7 +17,7 @@ const BankReconciliation = () => {
   // 1. Fetch live ledger balances from your Spring Boot backend
   const fetchLedger = () => {
     const loadToast = toast.loading("Syncing with Ledger...");
-    axios.get('http://localhost:8080/api/accounts/balances')
+    api.get('/api/accounts/balances')
       .then(res => {
         setLedgerEntries(res.data);
         toast.success("Ledger Synchronized", { id: loadToast });
@@ -81,7 +81,7 @@ const BankReconciliation = () => {
     };
 
     try {
-      const response = await axios.post('http://localhost:8080/api/journals', payload);
+      const response = await api.post('/api/journals', payload);
       if (response.status === 200 || response.status === 201) {
         toast.success(`Entry Created: ${row.description}`);
         fetchLedger(); 

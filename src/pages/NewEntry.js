@@ -57,7 +57,7 @@ const NewJournalEntry = () => {
 
     try {
       // URL FIX: Changed to /api/journals to match your @RequestMapping("/api/journals")
-      const response = await fetch('http://localhost:8080/api/journals', {
+      const response = await fetch((process.env.REACT_APP_API_URL || 'http://localhost:8080') + '/api/journals', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

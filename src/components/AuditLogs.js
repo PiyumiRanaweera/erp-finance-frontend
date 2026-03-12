@@ -4,10 +4,10 @@ import {
   RotateCcw, Database,
   Download, Activity, ShieldAlert, RefreshCw
 } from 'lucide-react';
-import axios from 'axios';
 import toast, { Toaster } from 'react-hot-toast';
+import api from '../api/client';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -21,7 +21,7 @@ const AuditLogs = () => {
     if (!isSilent) setLoading(true);
     try {
       // Updated to match the backend endpoint /api/audit-logs
-      const res = await axios.get('http://localhost:8080/api/audit-logs');
+      const res = await api.get('/api/audit-logs');
       setLogs(res.data);
       setDbStatus('Online');
       if (!isSilent) toast.success("Audit trail synchronized");
@@ -83,7 +83,7 @@ const AuditLogs = () => {
       new Date(log.timestamp).toLocaleString()
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
       startY: 45,

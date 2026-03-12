@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { Save, Plus, Trash2, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-const API_BASE_URL = 'http://localhost:8080';
+import api from '../../api/client';
 
 const JournalEntryForm = ({ onBack }) => {
     // 1. State initialized to match your Hotel Backend Model
@@ -58,7 +56,7 @@ const JournalEntryForm = ({ onBack }) => {
 
         try {
             // Updated endpoint to match your @RequestMapping("/api") + @PostMapping("/finance/entries")
-            await axios.post(`${API_BASE_URL}/api/finance/entries`, entry);
+            await api.post('/api/finance/entries', entry);
             toast.success("Transaction Posted Successfully!");
             if (onBack) setTimeout(onBack, 1500); // Return to dashboard after success
         } catch (error) {

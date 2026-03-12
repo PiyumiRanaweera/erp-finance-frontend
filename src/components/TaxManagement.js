@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Percent, Calculator, ShieldCheck, Landmark, RefreshCw } from 'lucide-react';
-import axios from 'axios';
+import api from '../api/client';
 
 const TaxManagement = () => {
   const [ledgerData, setLedgerData] = useState([]);
@@ -15,7 +15,7 @@ const TaxManagement = () => {
 
   const fetchTaxData = () => {
     setLoading(true);
-    axios.get('http://localhost:8080/api/accounts/balances')
+    api.get('/api/accounts/balances')
       .then(res => {
         setLedgerData(res.data);
         setLoading(false);
@@ -63,7 +63,7 @@ const TaxManagement = () => {
     };
 
     try {
-      await axios.post('http://localhost:8080/api/accounts/journals', payload);
+      await api.post('/api/accounts/journals', payload);
       alert("Tax Liability successfully recorded in Ledger!");
       fetchTaxData();
     } catch (error) {

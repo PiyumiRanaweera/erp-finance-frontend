@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Plus, Play, RefreshCw, AlertCircle, Clock, FileText, Users, Eye, CheckCircle, X } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import api from '../api/client';
 
 const AccountsPayable = () => {
     const [invoices, setInvoices] = useState([]);
@@ -22,8 +22,8 @@ const AccountsPayable = () => {
         setLoading(true);
         try {
             const [invRes, sumRes] = await Promise.all([
-                axios.get('http://localhost:8080/api/ap/invoices'),
-                axios.get('http://localhost:8080/api/ap/summary')
+                api.get('/api/ap/invoices'),
+                api.get('/api/ap/summary')
             ]);
             setInvoices(invRes.data);
             setStats(sumRes.data);
@@ -43,7 +43,7 @@ const AccountsPayable = () => {
     // Single Payment Logic
     const handlePayInvoice = async (id) => {
         try {
-            await axios.post(`http://localhost:8080/api/ap/pay/${id}`);
+            await api.post(`/api/ap/pay/${id}`);
             toast.success("Invoice paid successfully");
             fetchData();
         } catch (err) {
@@ -53,7 +53,7 @@ const AccountsPayable = () => {
 
     const handleBatchPay = async () => {
         try {
-            await axios.post('http://localhost:8080/api/ap/batch-pay', selectedIds);
+            await api.post('/api/ap/batch-pay', selectedIds);
             toast.success(`Paid ${selectedIds.length} invoices`);
             setSelectedIds([]);
             fetchData();
@@ -71,7 +71,7 @@ const AccountsPayable = () => {
                 return;
             }
 
-            await axios.post('http://localhost:8080/api/ap/invoices', formData);
+            await api.post('/api/ap/invoices', formData);
             toast.success("Invoice recorded successfully");
             setShowModal(false);
             setFormData({ vendor: '', invoiceNo: '', invoiceDate: new Date().toISOString().split('T')[0], dueDate: '', amount: '', status: 'PENDING' });
